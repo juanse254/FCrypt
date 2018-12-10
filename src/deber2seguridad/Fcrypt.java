@@ -57,13 +57,11 @@ import org.bouncycastle.crypto.util.PublicKeyFactory;
  */
 public class Fcrypt {
     
-    SecretKey secretKey;
-    String secretKeyType;
-    String publicKeyFilename = null;
-    String privateKeyFilename = null;
-    Key pubKey =  null;
-    PrivateKey privKey =  null;
-    AsymmetricKeyParameter pubKeyExtern =  null;
+    private SecretKey secretKey;
+    private String secretKeyType;
+    private Key pubKey =  null;
+    private PrivateKey privKey =  null;
+    private AsymmetricKeyParameter pubKeyExtern =  null;
 
     /**
      * @param args the command line arguments
@@ -82,27 +80,27 @@ public class Fcrypt {
 
         switch (args[0].trim()) {
             case "-d": // Decription
-                ArrayList Valores = FileCrypterD.Split(FileCrypterD.Read(args[3].trim())); // Valores Obtenidos de archivo encriptado.
-                Boolean Existe = FileCrypterD.AsymmetricSignVerify((byte[]) Valores.get(0), (AsymmetricKeyParameter) PublicKeyFactory.createKey(Base64.decodeBase64(FileCrypterD.Read(args[2].trim()))), (byte[]) Valores.get(1)); //Verifica si la firma es correcta o termina.
+                ArrayList Valores = FileCrypterD.Split(FileCrypterD.Read(args[3].trim())); // Values obtained from the cyphered file.
+                boolean Existe = FileCrypterD.AsymmetricSignVerify((byte[]) Valores.get(0), (AsymmetricKeyParameter) PublicKeyFactory.createKey(Base64.decodeBase64(FileCrypterD.Read(args[2].trim()))), (byte[]) Valores.get(1)); //Verifiy if the signature is right or quits.
                 if (!Existe) {
                     System.err.print("Firma Invalida.");
                     break;
                 }
-                byte[] Llave_asimetrica_des = FileCrypterD.AsymmetricDecription((AsymmetricKeyParameter) PrivateKeyFactory.createKey(Base64.decodeBase64(FileCrypterD.Read(args[1].trim()))), (byte[]) Valores.get(1));//Desencripta llave Simetrica encriptada asimetricamente.
-                SecretKey clave = new SecretKeySpec(Llave_asimetrica_des, "AES"); //Crea la clave simetrica a partir de bytes.
-                byte[] Datos_des = FileCrypterD.SymmetricDecription((byte[]) Valores.get(2), clave); // Desencripta el mensje con la llave simetrica.
-                FileCrypterD.Write(args[4].trim(), Datos_des); // escribe el mensaje desencriptado al archivo.
+                byte[] Llave_asimetrica_des = FileCrypterD.AsymmetricDecryption((AsymmetricKeyParameter) PrivateKeyFactory.createKey(Base64.decodeBase64(FileCrypterD.Read(args[1].trim()))), (byte[]) Valores.get(1));//decrypts symetric key using the asymetric keys.
+                SecretKey clave = new SecretKeySpec(Llave_asimetrica_des, "AES"); //Creates symetric key from bytes.
+                byte[] Datos_des = FileCrypterD.SymmetricDecryption((byte[]) Valores.get(2), clave); // Decrypts the file with the keys.
+                FileCrypterD.Write(args[4].trim(), Datos_des); // writes the decrypted message to the file.
                 break;
-            case "-e": // Encriptacion
-                byte[] Dato_Encriptado = FileCrypterD.SymmetricEncription(FileCrypterD.Read(args[3].trim())); //Encripta Mensaje simetricamete.
-                FileCrypterD.generateRSA("Public_Key", args[2].trim()); //Genera llaves publica y privada para encriptacion de llave siemtrica asimetricamente.
-                FileCrypterD.pubKeyExtern = (AsymmetricKeyParameter) PublicKeyFactory.createKey(Base64.decodeBase64(FileCrypterD.Read(args[1].trim()))); // Lee llave publica del destinatario.
-                byte[] Pass_encriptado = FileCrypterD.AsymmetricEncription(FileCrypterD.pubKeyExtern, FileCrypterD.secretKey.getEncoded()); // Encripta la llave simetrica asimetricamnte.
-                byte[] Pass_firmado = FileCrypterD.AsymmetricSign(FileCrypterD.privKey, Pass_encriptado); // Genera Firma para llave simetrica encriptada.
-                FileCrypterD.Write(args[4].trim(), FileCrypterD.Join(Dato_Encriptado, Pass_encriptado, Pass_firmado)); // Une la firma la llave encriptada y el mensaje encriptado.
+            case "-e": // Encryption
+                byte[] Dato_Encriptado = FileCrypterD.SymmetricEncryption(FileCrypterD.Read(args[3].trim())); //Cipher the message
+                FileCrypterD.GenerateRSA("Public_Key", args[2].trim()); //Generate public and private keys as wwell as the symetric key.
+                FileCrypterD.pubKeyExtern = (AsymmetricKeyParameter) PublicKeyFactory.createKey(Base64.decodeBase64(FileCrypterD.Read(args[1].trim()))); // Reads public key from remitent.
+                byte[] Pass_encriptado = FileCrypterD.AsymmetricEncryption(FileCrypterD.pubKeyExtern, FileCrypterD.secretKey.getEncoded()); // crypts the symetric key asymetrically.
+                byte[] Pass_firmado = FileCrypterD.AsymmetricSign(FileCrypterD.privKey, Pass_encriptado); // generates signature for the asymetric key.
+                FileCrypterD.Write(args[4].trim(), FileCrypterD.Join(Dato_Encriptado, Pass_encriptado, Pass_firmado)); // Merges the key and the message together.
                 break;
-            case "-g": // Generado secreto de llaves publica y privada
-                FileCrypterD.generateRSA("Public_Key", "Private_key");
+            case "-g": // Generates secret of keys and cypher protocol.
+                FileCrypterD.GenerateRSA("Public_Key", "Private_key");
             default:
                 System.err.println("Error en la opcion, ingrese -d o -e.");
                 break;
@@ -110,20 +108,25 @@ public class Fcrypt {
 
     }
 
-    private void generateRSA(String publicKeyFilename, String privateFilename) {
+    /*
+    Generates the RSA keypairs and saves to path.
+    Atirbutes KeyFileName or path, PrivateKeyName or path
+    Returns Null
+    */    
+    private void GenerateRSA(String publicKeyFilename, String privateFilename) {
 
         try {
 
             Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-            KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA", "BC"); // Algoritmo RSA de Bouncy Castle
-            SecureRandom random = SecureRandom.getInstance("SHA1PRNG"); // Aleatorio a partir de SHA1 PRNG
-            generator.initialize(2048, random); // llave de 2048 bits
+            KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA", "BC"); // Algorithm RSA from Bouncy Castle
+            SecureRandom random = SecureRandom.getInstance("SHA1PRNG"); // Random from  SHA1 PRNG
+            generator.initialize(2048, random); // key of 2048 bits
 
             KeyPair pair = generator.generateKeyPair();
             this.pubKey = pair.getPublic();
             this.privKey = pair.getPrivate();
 
-            this.Write(privateFilename, Base64.encodeBase64(this.privKey.getEncoded())); //Escribe llaves
+            this.Write(privateFilename, Base64.encodeBase64(this.privKey.getEncoded())); //write keys
             this.Write(publicKeyFilename, Base64.encodeBase64(this.pubKey.getEncoded()));
 
         } catch (Exception e) {
@@ -131,90 +134,136 @@ public class Fcrypt {
         }
     }
 
-    private byte[] SymmetricEncription(byte[] Datos) throws NoSuchAlgorithmException, NoSuchPaddingException, DataLengthException, IllegalStateException, InvalidCipherTextException, UnsupportedEncodingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, IOException {
-        KeyGenerator keyGen = KeyGenerator.getInstance("AES"); //Algoritmo AES
-        keyGen.init(128); // llave de 128 bits
+    /*
+    Crypts Symetrically the passed data.
+    Atirbutes Data to be crypted symetrically
+    Returns byte[] Array of crypted bytes.
+    */   
+    private byte[] SymmetricEncryption(byte[] Datos) throws NoSuchAlgorithmException, NoSuchPaddingException, DataLengthException, IllegalStateException, InvalidCipherTextException, UnsupportedEncodingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, IOException {
+        KeyGenerator keyGen = KeyGenerator.getInstance("AES"); //Algorithm AES
+        keyGen.init(128); // key of 128 bits
         secretKey = keyGen.generateKey();
         secretKeyType = secretKey.getFormat();
-        Cipher encryptCipher = Cipher.getInstance("AES"); //Encriptacion simetrica.
+        Cipher encryptCipher = Cipher.getInstance("AES"); //encrypt symetrically.
         encryptCipher.init(Cipher.ENCRYPT_MODE, secretKey);
         byte[] encByte = encryptCipher.doFinal(Datos);
         return encByte;
     }
 
-    private byte[] SymmetricDecription(byte[] Datos_cif, SecretKey key) throws DataLengthException, IllegalStateException, InvalidCipherTextException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
-        Cipher decryptCipher = Cipher.getInstance("AES"); //Desencriptacion Simetrica con AES
+    /*
+    Decrypts Symetrically using the provided secret key
+    Atirbutes data to be decrypted, secret key for decryption
+    Returns bytes[] of decrypted data
+    */   
+    private byte[] SymmetricDecryption(byte[] Datos_cif, SecretKey key) throws DataLengthException, IllegalStateException, InvalidCipherTextException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+        Cipher decryptCipher = Cipher.getInstance("AES"); //decrypt symetrically with AES
         decryptCipher.init(Cipher.DECRYPT_MODE, key);
-        byte[] byteDec = decryptCipher.doFinal(Datos_cif);
-        return byteDec;
+        byte[] ByteDec = decryptCipher.doFinal(Datos_cif);
+        return ByteDec;
     }
 
-    private byte[] AsymmetricEncription(AsymmetricKeyParameter Publica, byte[] password) throws InvalidCipherTextException {
+    /*
+    Crypts Asymetrically the passed data.
+    Atirbutes Public key to be used , password used as salt.
+    Returns EncodedCipher a byte of arrays of the coded blocks in RSA.
+    */  
+    private byte[] AsymmetricEncryption(AsymmetricKeyParameter Publica, byte[] password) throws InvalidCipherTextException {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-        AsymmetricBlockCipher Cipher = new RSAEngine(); //Encriptacion con motor RSA.
+        AsymmetricBlockCipher Cipher = new RSAEngine(); //Crypt with RSA engine.
         Cipher = new org.bouncycastle.crypto.encodings.PKCS1Encoding(Cipher); // Encoding PKCS1.
         Cipher.init(true, Publica);
-        byte[] EncodedCipher = Cipher.processBlock(password, 0, password.length); //Procesamiento por bloques.
+        byte[] EncodedCipher = Cipher.processBlock(password, 0, password.length); //Process per block.
         return EncodedCipher;
     }
 
-    private byte[] AsymmetricDecription(AsymmetricKeyParameter Privada, byte[] password) throws InvalidCipherTextException {
+    /*
+    Decrypts Asymetrically the passed data.
+    Atirbutes Private key to be used , password used as desalter.
+    Returns DecodedCypher a byte of arrays of the decoded blocks in RSA.
+    */
+    private byte[] AsymmetricDecryption(AsymmetricKeyParameter Privada, byte[] password) throws InvalidCipherTextException {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
         AsymmetricBlockCipher CipherOut = new RSAEngine();
         CipherOut = new org.bouncycastle.crypto.encodings.PKCS1Encoding(CipherOut);
         CipherOut.init(false, Privada);
         byte[] DecodedMes = password;
-        byte[] DecodedCypher = CipherOut.processBlock(DecodedMes, 0, DecodedMes.length); //Desencriptamiento por bloques.
+        byte[] DecodedCypher = CipherOut.processBlock(DecodedMes, 0, DecodedMes.length); //Decrypt per block.
         return DecodedCypher;
     }
 
+    /*
+    Signs Asymetrically the passed data.
+    Atirbutes Private key to be used , password used as salt.
+    Returns byte[] a byte of arrays of the signature generated for the file.
+    */
     private byte[] AsymmetricSign(PrivateKey key, byte[] password) throws NoSuchAlgorithmException, NoSuchProviderException, InvalidKeyException, SignatureException {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-        Signature signature = Signature.getInstance("SHA1withRSA", "BC"); //Firma con SHA1 en RSA
-        SecureRandom random = SecureRandom.getInstance("SHA1PRNG"); // Aleatorio SH1 PRNG
+        Signature signature = Signature.getInstance("SHA1withRSA", "BC"); //Sign with SHA1 in RSA
+        SecureRandom random = SecureRandom.getInstance("SHA1PRNG"); // Random SH1 PRNG
         signature.initSign(key, random);
         signature.update(password);
-        byte[] signatureBytes = signature.sign(); //Genera Firma
+        byte[] signatureBytes = signature.sign(); //Generates Signature
         return signatureBytes;
     }
 
+    /*
+    Verifies the signature Asymetrically the passed data.
+    Atirbutes byte[] array containing the signature, Public key to be used , password used as salt.
+    Returns Boolean containing true or false depending on the status of the signature.
+    */
     private boolean AsymmetricSignVerify(byte[] Sign, AsymmetricKeyParameter key, byte[] password) throws InvalidKeyException, NoSuchAlgorithmException, NoSuchProviderException, SignatureException, InvalidKeySpecException, IOException {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
         Signature signature = Signature.getInstance("SHA1withRSA", "BC");
         RSAKeyParameters keys = (RSAKeyParameters) key;
         RSAPublicKeySpec rsaSpec = new RSAPublicKeySpec(keys.getModulus(), keys.getExponent());
-        KeyFactory kf = KeyFactory.getInstance("RSA"); //Crea llave publica remitente.
+        KeyFactory kf = KeyFactory.getInstance("RSA"); //Creates public key.
         PublicKey rsaPub = kf.generatePublic(rsaSpec);
         signature.initVerify(rsaPub);
         signature.update(password);
-        Boolean Correct = signature.verify(Sign); //Verifica firma.
+        boolean Correct = signature.verify(Sign); //Verifies Signature.
         return Correct;
     }
 
+    /*
+    Reads a File
+    Atirbutes name or path of file
+    Returns array of strings of the file.
+    */
     private byte[] Read(String FileName) throws IOException {
-        File Archivo = new File(FileName); //Lee desde archivo bytes.
+        File Archivo = new File(FileName); //Reads from file bytes.
         FileInputStream fis = null;
         byte[] Datos = null;
         try {
             fis = new FileInputStream(Archivo);
             Datos = IOUtils.toByteArray(fis);
             fis.close();
-        } catch (IOException e) {
+        } 
+        catch (IOException e) {
             e.printStackTrace();
         }
         return Datos;
     }
 
+    /*
+    Writes a File
+    Atirbutes name or path of file, byte array to be written.
+    Returns void
+    */
     private void Write(String FileName, byte[] datos) throws FileNotFoundException, IOException {
-        BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(FileName)); //Escribe desde archivo bytes.
+        BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(FileName)); //Writes from byte file.
         bos.write(datos);
         bos.flush();
         bos.close();
     }
 
+    /*
+    Merges blocks of code segmented by bytes.
+    Atirbutes data to be merged, the asymetric block, the signature
+    Returns array of byte with the merged blocks into an array.
+    */
     private byte[] Join(byte[] Datos, byte[] Encriptado_asimetrico, byte[] Firma) throws IOException {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(); // Une valores en bytes y los codifica en base64 para delimitacion en split.
-        byte[] empty = new String("  ").getBytes(); //delimitador 
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(); // Joins values in bytes and encodes to base64 to write to file.
+        byte[] empty = new String("  ").getBytes(); //delimiter 
         outputStream.write(Base64.encodeBase64(Firma));
         outputStream.write(empty);
         outputStream.write(Base64.encodeBase64(Encriptado_asimetrico));
@@ -224,14 +273,19 @@ public class Fcrypt {
         return total;
     }
 
+    /*
+    Splits blocks of code segmented by bytes.
+    Atirbutes Data to be split and encoded.
+    Returns Array with 3 sets of bytetypes, signature, key and encripted message.
+    */
     private ArrayList Split(byte[] Encriptado) {
-        String S = new String(Encriptado); // Crea arreglo de byte[] con 3 arreglos delimitados por "  "
+        String S = new String(Encriptado); // Creates three arrays delimited by "  "
         List<String> list = new ArrayList<String>(Arrays.asList(S.split("  ")));
         ArrayList Bytes = new ArrayList<>();
         for (String s : list) {
             Bytes.add(Base64.decodeBase64(s.getBytes()));
         }
-        return Bytes; //Devuelve el arreglo con los 3 arreglos de bytes , firma, llave, mensaje.
+        return Bytes; //Returns array with 3 sets of bytws signature, key and message.
     }
 
 }
